@@ -1681,21 +1681,26 @@ DJGDEF djg_mesh *djgm_load_sphere(int slices, int stacks)
 	for (i = 0; i < slices; ++i)
 	for (j = 0; j < stacks; ++j) {
 		djgm_vertex *v = &mesh->vertexv[i * stacks + j];
-		float phi = v->st.s * 2 * M_PI;
-		float c = 2 * v->st.t - 1;
-		float s = sqrt(1 - c * c);
+		float theta = v->st.s * M_PI;
+		float phi = v->st.t * 2.f * M_PI;
+		float tmp = v->st.s;
 
-		v->p.x = s * cos(phi);
-		v->p.y = s * sin(phi);
-		v->p.z = c;
+		v->st.s = v->st.t;
+		v->st.t = tmp;
+		v->st.p = 0;
+		v->st.q = 0;
 
-		v->dpds.x = -sin(phi);
-		v->dpds.y = cos(phi);
-		v->dpds.z = 0;
+		v->p.x = sin(theta) * cos(phi);
+		v->p.y = sin(theta) * sin(phi);
+		v->p.z = cos(theta);
 
-		v->dpdt.x = c * cos(phi);
-		v->dpdt.y = c * sin(phi);
-		v->dpdt.z = -s;
+		v->dpds.x = cos(theta) * cos(phi);
+		v->dpds.y = cos(theta) * sin(phi);
+		v->dpds.z = -sin(theta);
+
+		v->dpdt.x = -sin(phi);
+		v->dpdt.y = cos(phi);
+		v->dpdt.z = 0.f;
 	}
 
 	return mesh;
