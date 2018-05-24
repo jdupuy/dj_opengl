@@ -950,7 +950,7 @@ static int djgt__max3(int x, int y, int z)
  */
 static int djgt__mipcnt(int x, int y, int z)
 {
-	return (djgt__log2(djgt__max3(x, y, z)) + /* base MIP */1);
+	return (djgt__log2(djgt__max3(x, y, z)));
 }
 #endif // NGL_ARB_texture_storage
 
