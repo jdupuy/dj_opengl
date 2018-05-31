@@ -173,6 +173,7 @@ DJGDEF void djgm_release(djg_mesh *mesh);
 // factories
 DJGDEF djg_mesh *djgm_load_plane(int slices, int stacks);
 DJGDEF djg_mesh *djgm_load_disk(int slices, int stacks);
+DJGDEF djg_mesh *djgm_load_cap(float angle, int slices, int stacks);
 DJGDEF djg_mesh *djgm_load_sphere(int slices, int stacks);
 DJGDEF djg_mesh *djgm_load_cylinder(int slices, int stacks);
 DJGDEF djg_mesh *djgm_load_cone(int slices, int stacks);
@@ -1669,8 +1670,7 @@ djgm_load_plane(int slices, int stacks)
 	return mesh;
 }
 
-
-DJGDEF djg_mesh *djgm_load_sphere(int slices, int stacks)
+DJGDEF djg_mesh *djgm_load_cap(float angle, int slices, int stacks)
 {
 	djg_mesh *mesh = djgm_load_plane(slices, stacks);
 	int i, j;
@@ -1681,7 +1681,7 @@ DJGDEF djg_mesh *djgm_load_sphere(int slices, int stacks)
 	for (i = 0; i < slices; ++i)
 	for (j = 0; j < stacks; ++j) {
 		djgm_vertex *v = &mesh->vertexv[i * stacks + j];
-		float theta = v->st.s * M_PI;
+		float theta = v->st.s * angle;
 		float phi = v->st.t * 2.f * M_PI;
 		float tmp = v->st.s;
 
@@ -1704,6 +1704,11 @@ DJGDEF djg_mesh *djgm_load_sphere(int slices, int stacks)
 	}
 
 	return mesh;
+}
+
+DJGDEF djg_mesh *djgm_load_sphere(int slices, int stacks)
+{
+	return djgm_load_cap(M_PI, slices, stacks);
 }
 
 DJGDEF djg_mesh *
