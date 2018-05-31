@@ -173,8 +173,9 @@ DJGDEF void djgm_release(djg_mesh *mesh);
 // factories
 DJGDEF djg_mesh *djgm_load_plane(int slices, int stacks);
 DJGDEF djg_mesh *djgm_load_disk(int slices, int stacks);
-DJGDEF djg_mesh *djgm_load_cap(float angle, int slices, int stacks);
 DJGDEF djg_mesh *djgm_load_sphere(int slices, int stacks);
+DJGDEF djg_mesh *djgm_load_cap(float angle, int slices, int stacks);
+DJGDEF djg_mesh *djgm_load_hemisphere(int slices, int stacks);
 DJGDEF djg_mesh *djgm_load_cylinder(int slices, int stacks);
 DJGDEF djg_mesh *djgm_load_cone(int slices, int stacks);
 DJGDEF djg_mesh *djgm_load_torus(float aspect, int ring_segments, int pipe_segments);
@@ -1709,6 +1710,11 @@ DJGDEF djg_mesh *djgm_load_cap(float angle, int slices, int stacks)
 DJGDEF djg_mesh *djgm_load_sphere(int slices, int stacks)
 {
 	return djgm_load_cap(M_PI, slices, stacks);
+}
+
+DJGDEF djg_mesh *djgm_load_hemisphere(int slices, int stacks)
+{
+	return djgm_load_cap(M_PI / 2, slices, stacks);
 }
 
 DJGDEF djg_mesh *
