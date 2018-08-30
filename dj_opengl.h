@@ -99,13 +99,16 @@ typedef struct djg_texture djg_texture;
 DJGDEF djg_texture *djgt_create(int req_comp);
 DJGDEF void djgt_release(djg_texture *texture);
 
-DJGDEF bool djgt_push_image(djg_texture *texture,
-                            const char *filename,
-                            bool flipy);
-#ifndef STBI_NO_HDR
-DJGDEF bool djgt_push_hdrimage(djg_texture *texture,
+DJGDEF bool djgt_push_image_u8(djg_texture *texture,
                                const char *filename,
                                bool flipy);
+DJGDEF bool djgt_push_image_u16(djg_texture *texture,
+                                const char *filename,
+                                bool flipy);
+#ifndef STBI_NO_HDR
+DJGDEF bool djgt_push_image_hdr(djg_texture *texture,
+                                const char *filename,
+                                bool flipy);
 #endif // STBI_NO_HDR
 DJGDEF bool djgt_push_glcolorbuffer(djg_texture *texture,
                                     GLenum glbuffer,
@@ -773,15 +776,16 @@ DJGDEF void djgb_glbind(const djg_buffer *buffer, GLenum target)
 
 #ifdef STBI_INCLUDE_STB_IMAGE_H
 
+enum {DJGT_PF_INVALID = 0, DJGT_PF_U8 = 1, DJGT_PF_U16 = 2, DJGT_PF_F32 = 4};
 typedef struct djg_texture {
 	struct djg_texture *next;
 	char *texels;   // pixel data
-	int x, y, comp, hdr;  // width, height, format, and hdr flag
+    int x, y, comp, pf;  // width, height, format, pixel format
 } djg_texture;
 
 static void djgt__flipy(djg_texture *texture)
 {
-	int x, y, bpp = texture->comp * (texture->hdr ? 4 : 1);
+    int x, y, bpp = texture->comp * texture->pf;
 
 	for (x = 0; x < texture->x; ++x)
 	for (y = 0; y < texture->y / 2; ++y) {
@@ -831,7 +835,7 @@ DJGDEF djg_texture *djgt_create(int req_comp)
 	head->x = 0;
 	head->y = 0;
 	head->comp = req_comp;
-	head->hdr = false;
+    head->pf = DJGT_PF_INVALID;
 
 	return head;
 }
@@ -850,37 +854,62 @@ DJGDEF void djgt_release(djg_texture *texture)
 }
 
 DJGDEF bool
-djgt_push_image(djg_texture *texture, const char *filename, bool flipy)
+djgt_push_image_u8(djg_texture *texture, const char *filename, bool flipy)
 {
-	djg_texture *tail = djgt_create(texture->comp);
+    djg_texture *tail = djgt_create(texture->comp);
 
-	tail->hdr = false;
-	tail->texels = (char *)stbi_load(
-		filename, &tail->x, &tail->y, &tail->comp, texture->comp
-	);
-	if (!tail->texels) {
-		DJG_LOG("djg_error: Image loading failed\n");
+    tail->pf = DJGT_PF_U16;
+    tail->texels = (char *)stbi_load(
+        filename, &tail->x, &tail->y, &tail->comp, texture->comp
+    );
+    if (!tail->texels) {
+        DJG_LOG("djg_error: Image loading failed\n");
 #ifndef STBI_NO_FAILURE_STRINGS
-		DJG_LOG("-- Begin -- STBI Log\n");
-		DJG_LOG("%s\n", stbi_failure_reason());
-		DJG_LOG("-- End -- STBI Log\n");
+        DJG_LOG("-- Begin -- STBI Log\n");
+        DJG_LOG("%s\n", stbi_failure_reason());
+        DJG_LOG("-- End -- STBI Log\n");
 #endif // STBI_NO_FAILURE_STRINGS
-		djgt_release(tail);
+        djgt_release(tail);
 
-		return false;
-	}
-	djgt__push_texture(texture, tail, flipy);
+        return false;
+    }
+    djgt__push_texture(texture, tail, flipy);
 
-	return true;
+    return true;
+}
+
+DJGDEF bool
+djgt_push_image_u16(djg_texture *texture, const char *filename, bool flipy)
+{
+    djg_texture *tail = djgt_create(texture->comp);
+
+    tail->pf = DJGT_PF_U16;
+    tail->texels = (char *)stbi_load_16(
+        filename, &tail->x, &tail->y, &tail->comp, texture->comp
+    );
+    if (!tail->texels) {
+        DJG_LOG("djg_error: Image loading failed\n");
+#ifndef STBI_NO_FAILURE_STRINGS
+        DJG_LOG("-- Begin -- STBI Log\n");
+        DJG_LOG("%s\n", stbi_failure_reason());
+        DJG_LOG("-- End -- STBI Log\n");
+#endif // STBI_NO_FAILURE_STRINGS
+        djgt_release(tail);
+
+        return false;
+    }
+    djgt__push_texture(texture, tail, flipy);
+
+    return true;
 }
 
 #ifndef STBI_NO_HDR
 DJGDEF bool
-djgt_push_hdrimage(djg_texture *texture, const char *filename, bool flipy)
+djgt_push_image_hdr(djg_texture *texture, const char *filename, bool flipy)
 {
 	djg_texture *tail = djgt_create(texture->comp);
 
-	tail->hdr = true;
+    tail->pf = DJGT_PF_F32;
 	tail->texels = (char *)stbi_loadf(
 		filename, &tail->x, &tail->y, &tail->comp, texture->comp
 	);
@@ -1041,14 +1070,24 @@ static bool djgt__validate(void)
 	return nerr;
 }
 
-#define djgt__glformat(T) \
-	(T->comp == 1 ? GL_RED :\
-		T->comp == 2 ? GL_RG :\
-			T->comp == 3 ? GL_RGB :\
-				GL_RGBA)
+GLenum djgt__glformat(int comp)
+{
+    if (comp == 1) return GL_RED;
+    if (comp == 2) return GL_RG;
+    if (comp == 3) return GL_RGB;
+    if (comp == 4) return GL_RGBA;
 
-#define djgt__gltype(T) \
-	(T->hdr ? GL_FLOAT : GL_UNSIGNED_BYTE)
+    return GL_INVALID_ENUM;
+}
+
+GLenum djgt__gltype(int pf)
+{
+    if (pf == DJGT_PF_U8) return GL_UNSIGNED_BYTE;
+    if (pf == DJGT_PF_U16) return GL_UNSIGNED_SHORT;
+    if (pf == DJGT_PF_F32) return GL_FLOAT;
+
+    return GL_INVALID_ENUM;
+}
 
 static bool
 djgt__glTexSubImage1D(const djg_texture *texture, GLenum target, GLint xoffset)
@@ -1064,8 +1103,8 @@ djgt__glTexSubImage1D(const djg_texture *texture, GLenum target, GLint xoffset)
 	       /*level*/0,
 	                xoffset,
 	                texture->x,
-	                djgt__glformat(texture),
-	                djgt__gltype(texture),
+                    djgt__glformat(texture->comp),
+                    djgt__gltype(texture->pf),
 	                texture->texels);
 	if (reset) djgt__set_glpus(backup);
 
@@ -1092,8 +1131,8 @@ djgt__glTexSubImage2D(
 	                yoffset,
 	                texture->x,
 	                texture->y,
-	                djgt__glformat(texture),
-	                djgt__gltype(texture),
+                    djgt__glformat(texture->comp),
+                    djgt__gltype(texture->pf),
 	                texture->texels);
 	if (reset) djgt__set_glpus(backup);
 
@@ -1123,8 +1162,8 @@ djgt__glTexSubImage3D(
 	                texture->x,
 	                texture->y,
 	       /*depth*/1,
-	                djgt__glformat(texture),
-	                djgt__gltype(texture),
+                    djgt__glformat(texture->comp),
+                    djgt__gltype(texture->pf),
 	                texture->texels);
 	if (reset) djgt__set_glpus(backup);
 
@@ -1374,64 +1413,69 @@ djgt_to_gl(
 
 DJGDEF bool
 djgt_push_glcolorbuffer(
-	djg_texture *texture,
-	GLenum glbuffer,
-	GLenum glformat,
-	GLenum gltype,
-	bool flipy
+    djg_texture *texture,
+    GLenum glbuffer,
+    GLenum glformat,
+    GLenum gltype,
+    bool flipy
 ) {
-	DJG_ASSERT(texture);
-	djgt__glpss pus = {0, 0, 0, 0, 0, 0 ,0, 0, 2};
-	djg_texture *tail = djgt_create(0);
-	djgt__glpss pss;
-	GLint read_buffer;
-	GLint v[4];
+    DJG_ASSERT(texture);
+    djgt__glpss pus = {0, 0, 0, 0, 0, 0 ,0, 0, 2};
+    djg_texture *tail = djgt_create(0);
+    djgt__glpss pss;
+    GLint read_buffer;
+    GLint v[4];
 
-	// init members
-	glGetIntegerv(GL_VIEWPORT, v);
-	glGetIntegerv(GL_READ_BUFFER, &read_buffer);
-	tail->x = v[2];
-	tail->y = v[3];
-	switch (glformat) {
-		case GL_RED : tail->comp = 1; break;
-		case GL_RG  : tail->comp = 2; break;
-		case GL_RGB : tail->comp = 3; break;
-		case GL_RGBA: tail->comp = 4; break;
-		default:
-			DJG_LOG("djg_error: Unsupported OpenGL format\n");
-			djgt_release(tail);
+    // init members
+    glGetIntegerv(GL_VIEWPORT, v);
+    glGetIntegerv(GL_READ_BUFFER, &read_buffer);
+    tail->x = v[2];
+    tail->y = v[3];
+    switch (glformat) {
+        case GL_RED : tail->comp = 1; break;
+        case GL_RG  : tail->comp = 2; break;
+        case GL_RGB : tail->comp = 3; break;
+        case GL_RGBA: tail->comp = 4; break;
+        default:
+            DJG_LOG("djg_error: Unsupported OpenGL format\n");
+            djgt_release(tail);
 
-			return false;
-	}
-	switch (gltype) {
-		case GL_UNSIGNED_BYTE:
-			tail->texels = (char *)DJG_MALLOC(tail->x * tail->y * tail->comp);
-			break;
-		case GL_FLOAT:
-			tail->texels = (char *)DJG_MALLOC(sizeof(float) * tail->x * tail->y * tail->comp);
-			tail->hdr = true;
-			break;
-		default:
-			DJG_LOG("djg_error: Unsupported OpenGL type\n");
-			djgt_release(tail);
+            return false;
+    }
+    switch (gltype) {
+        case GL_UNSIGNED_BYTE:
+            tail->texels = (char *)DJG_MALLOC(tail->x * tail->y * tail->comp);
+            tail->pf = DJGT_PF_U8;
+            break;
+        case GL_UNSIGNED_SHORT:
+            tail->texels = (char *)DJG_MALLOC(2 * tail->x * tail->y * tail->comp);
+            tail->pf = DJGT_PF_U16;
+            break;
+        case GL_FLOAT:
+            tail->texels = (char *)DJG_MALLOC(sizeof(float) * tail->x * tail->y * tail->comp);
+            tail->pf = DJGT_PF_F32;
+            break;
+        default:
+            DJG_LOG("djg_error: Unsupported OpenGL type\n");
+            djgt_release(tail);
 
-			return false;
-	}
+            return false;
+    }
 
-	// fill texels and push texture
-	djgt__get_glpps(pss);
-	djgt__set_glpps(pus);
-	glReadBuffer(glbuffer);
-	glReadPixels(v[0], v[1], v[2], v[3], glformat, gltype, tail->texels);
-	glReadBuffer(read_buffer);
-	djgt__set_glpps(pss);
+    // fill texels and push texture
+    djgt__get_glpps(pss);
+    djgt__set_glpps(pus);
+    glReadBuffer(glbuffer);
+    glReadPixels(v[0], v[1], v[2], v[3], glformat, gltype, tail->texels);
+    glReadBuffer(read_buffer);
+    djgt__set_glpps(pss);
 
-	if (djgt__validate())
-		djgt__push_texture(texture, tail, flipy);
-	else
-		return false;
+    if (djgt__validate())
+        djgt__push_texture(texture, tail, flipy);
+    else
+        return false;
 
-	return true;
+    return true;
 }
 
 #endif // STBI_INCLUDE_STB_IMAGE_H
