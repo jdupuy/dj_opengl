@@ -423,7 +423,9 @@ enum {
     DJGP__STAGE_GEOMETRY_BIT        = 1 << 2,
     DJGP__STAGE_TESS_CONTROL_BIT    = 1 << 3,
     DJGP__STAGE_TESS_EVALUATION_BIT = 1 << 4,
-    DJGP__STAGE_COMPUTE_BIT         = 1 << 5
+    DJGP__STAGE_TASK_BIT            = 1 << 5,
+    DJGP__STAGE_MESH_BIT            = 1 << 6,
+    DJGP__STAGE_COMPUTE_BIT         = 1 << 7
 };
 
 typedef struct djg_program {
@@ -612,6 +614,10 @@ djgp_to_gl(
         stages|= DJGP__STAGE_TESS_EVALUATION_BIT;
     if (strstr(srcv[srcc-1], "COMPUTE_SHADER"))
         stages|= DJGP__STAGE_COMPUTE_BIT;
+    if (strstr(srcv[srcc-1], "TASK_SHADER"))
+        stages|= DJGP__STAGE_TASK_BIT;
+    if (strstr(srcv[srcc-1], "MESH_SHADER"))
+        stages|= DJGP__STAGE_MESH_BIT;
 
     if (!stages) {
         DJG_LOG("djg_error: no shader stage found in source\n");
@@ -656,6 +662,12 @@ djgp_to_gl(
 #endif
 #if defined(GL_COMPUTE_SHADER)
     DJGP__ATTACH_SHADER(GL_COMPUTE_SHADER, "COMPUTE_SHADER", DJGP__STAGE_COMPUTE_BIT);
+#endif
+#if defined(GL_TASK_SHADER_NV)
+    DJGP__ATTACH_SHADER(GL_TASK_SHADER_NV, "TASK_SHADER", DJGP__STAGE_TASK_BIT);
+#endif
+#if defined(GL_MESH_SHADER_NV)
+    DJGP__ATTACH_SHADER(GL_MESH_SHADER_NV, "MESH_SHADER", DJGP__STAGE_MESH_BIT);
 #endif
 
 #undef DJGP__ATTACH_SHADER
