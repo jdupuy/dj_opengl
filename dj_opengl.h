@@ -3,9 +3,9 @@
    Do this:
       #define DJ_OPENGL_IMPLEMENTATION
    before you include this file in *one* C or C++ file to create the implementation.
-   
+
    USAGE
-   
+
    INTERFACING
 
    define DJG_ASSERT(x) to avoid using assert.h.
@@ -85,6 +85,10 @@ DJGDEF void djgb_glbind(const djg_buffer *buffer, GLenum target);
 DJGDEF void djgb_glbindrange(const djg_buffer *buffer,
                              GLenum target,
                              GLuint index);
+DJGDEF void djgb_glbindrange_offset(const djg_buffer *buffer,
+                                    GLenum target,
+                                    GLuint index,
+                                    GLint offset);
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -135,7 +139,7 @@ DJGDEF bool djgt_to_gl(const djg_texture *texture,
 //////////////////////////////////////////////////////////////////////////////
 //
 // Texture Saving API - Save OpenGL textures / buffers as images
-//    NOTE: requires Sean Barett's (http://nothings.org/) stbi and stbi_write 
+//    NOTE: requires Sean Barett's (http://nothings.org/) stbi and stbi_write
 //          library
 //
 
@@ -231,7 +235,7 @@ DJGDEF bool djgm_export_obj_quads(const djg_mesh *mesh, const char *filename);
 #endif
 
 #ifndef M_PI
-#define M_PI 3.1415926535897932384626433832795 
+#define M_PI 3.1415926535897932384626433832795
 #endif
 
 // Internal constants
@@ -333,7 +337,7 @@ typedef struct djg_clock {
           is_gpu_ready;
 } djg_clock;
 
-DJGDEF djg_clock *djgc_create(void) 
+DJGDEF djg_clock *djgc_create(void)
 {
     djg_clock *clock = (djg_clock *)DJG_MALLOC(sizeof(*clock));
 
@@ -765,10 +769,23 @@ DJGDEF bool djgb_to_gl(djg_buffer *buffer, const void *data, int *offset)
     return true;
 }
 
+DJGDEF void
+djgb_glbindrange_offset(
+    djg_buffer *buffer,
+    GLenum target,
+    GLuint index,
+    GLint offset
+) {
+    int tmp = buffer->offset + buffer->size * (offset - 1);
+    int maxOffset = buffer->offset + buffer->size;
+    int bufOffset = ((tmp % maxOffset) + maxOffset) % maxOffset;
+
+    glBindBufferRange(target, index, buffer->gl, bufOffset, buffer->size);
+}
+
 DJGDEF void djgb_glbindrange(djg_buffer *buffer, GLenum target, GLuint index)
 {
-    int offset = buffer->offset - buffer->size;
-    glBindBufferRange(target, index, buffer->gl, offset, buffer->size);
+    djgb_glbindrange_offset(buffer, target, index, 0);
 }
 
 DJGDEF void djgb_glbind(const djg_buffer *buffer, GLenum target)
@@ -993,8 +1010,8 @@ static int djgt__mipcnt(int x, int y, int z)
 /**
  * OpenGL State management for Texture uploads.
  * The upload is GL_PIXEL_STORE state safe. Note that
- * the texture is created in the active channel, so 
- * previous bindings are overwritten. You can safely bind 
+ * the texture is created in the active channel, so
+ * previous bindings are overwritten. You can safely bind
  * the texture by setting glActiveTexture to a free channel
  *
  */
@@ -1012,7 +1029,7 @@ enum {
     DJGT__GLPSS_COUNT
 };
 // OpenGL pixel store state
-typedef GLint djgt__glpss[DJGT__GLPSS_COUNT]; 
+typedef GLint djgt__glpss[DJGT__GLPSS_COUNT];
 
 static void djgt__get_glpps(djgt__glpss state)
 {
