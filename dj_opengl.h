@@ -789,7 +789,7 @@ djgb_glbindrange_offset(
     GLint offset
 ) {
     int tmp = buffer->offset + buffer->size * (offset - 1);
-    int maxOffset = buffer->offset + buffer->size;
+    int maxOffset = buffer->capacity - buffer->size;
     int bufOffset = ((tmp % maxOffset) + maxOffset) % maxOffset;
 
     glBindBufferRange(target, index, buffer->gl, bufOffset, buffer->size);
