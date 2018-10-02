@@ -892,7 +892,7 @@ djgt_push_image_u8(djg_texture *texture, const char *filename, bool flipy)
 {
     djg_texture *tail = djgt_create(texture->comp);
 
-    tail->pf = DJGT_PF_U16;
+    tail->pf = DJGT_PF_U8;
     tail->texels = (char *)stbi_load(
         filename, &tail->x, &tail->y, &tail->comp, texture->comp
     );
