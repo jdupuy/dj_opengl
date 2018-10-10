@@ -630,7 +630,7 @@ typedef struct djg_buffer {
 
 DJGDEF djg_buffer *djgb_create(int data_size)
 {
-    const int buf_capacity = 4096;//(1 << 20); // capacity in Bytes
+    const int buf_capacity = (1 << 20); // capacity in Bytes
     djg_buffer *buffer = (djg_buffer*)DJG_MALLOC(sizeof(*buffer));
     GLint buf = 0;
 
