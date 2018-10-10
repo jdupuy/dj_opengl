@@ -29,15 +29,6 @@ extern "C" {
 
 //////////////////////////////////////////////////////////////////////////////
 //
-// Debug Output API - Use OpenGL debug output
-//
-
-#ifdef GL_ARB_debug_output
-DJGDEF void djg_log_debug_output(void);
-#endif // GL_ARB_debug_output
-
-//////////////////////////////////////////////////////////////////////////////
-//
 // Clock API - Get CPU and GPU ticks
 //
 
@@ -221,7 +212,7 @@ DJGDEF bool djgm_export_obj_quads(const djg_mesh *mesh, const char *filename);
 
 #ifndef DJG_LOG
 #    include <stdio.h>
-#    define DJG_LOG(format, ...) fprintf(stdout, format, ##__VA_ARGS__)
+#    define DJG_LOG(format, ...) do { fprintf(stdout, format, ##__VA_ARGS__); fflush(stdout); } while(0)
 #endif
 
 #ifndef DJG_MALLOC
@@ -244,84 +235,6 @@ DJGDEF bool djgm_export_obj_quads(const djg_mesh *mesh, const char *filename);
 
 // Internal macros
 #define DJG__BUFSIZE(x) sizeof(x) / sizeof(x[0])
-
-// *************************************************************************************************
-// Debug Output API Implementation
-
-#ifdef GL_ARB_debug_output
-
-static void
-djg__debug_output_logger(
-    GLenum source,
-    GLenum type,
-    GLuint id,
-    GLenum severity,
-    GLsizei length,
-    const GLchar* message,
-    const GLvoid* userParam
-) {
-    char srcstr[32], typestr[32];
-
-    switch(source) {
-        case GL_DEBUG_SOURCE_API_ARB: strcpy(srcstr, "OpenGL"); break;
-        case GL_DEBUG_SOURCE_WINDOW_SYSTEM_ARB: strcpy(srcstr, "Windows"); break;
-        case GL_DEBUG_SOURCE_SHADER_COMPILER_ARB: strcpy(srcstr, "Shader Compiler"); break;
-        case GL_DEBUG_SOURCE_THIRD_PARTY_ARB: strcpy(srcstr, "Third Party"); break;
-        case GL_DEBUG_SOURCE_APPLICATION_ARB: strcpy(srcstr, "Application"); break;
-        case GL_DEBUG_SOURCE_OTHER_ARB: strcpy(srcstr, "Other"); break;
-        default: strcpy(srcstr, "???"); break;
-    };
-
-    switch(type) {
-        case GL_DEBUG_TYPE_ERROR_ARB: strcpy(typestr, "Error"); break;
-        case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR_ARB: strcpy(typestr, "Deprecated Behavior"); break;
-        case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR_ARB: strcpy(typestr, "Undefined Behavior"); break;
-        case GL_DEBUG_TYPE_PORTABILITY_ARB: strcpy(typestr, "Portability"); break;
-        case GL_DEBUG_TYPE_PERFORMANCE_ARB: strcpy(typestr, "Performance"); break;
-        case GL_DEBUG_TYPE_OTHER_ARB: strcpy(typestr, "Message"); break;
-#if 0
-        case GL_DEBUG_TYPE_MARKER: strcpy(typestr, "Marker"); break;
-        case GL_DEBUG_TYPE_PUSH_GROUP: strcpy(typestr, "Push Group"); break;
-        case GL_DEBUG_TYPE_POP_GROUP: strcpy(typestr, "Pop Group"); break;
-#endif
-        default: strcpy(typestr, "???"); break;
-    }
-
-    if(severity == GL_DEBUG_SEVERITY_HIGH_ARB) {
-        DJG_LOG("djg_error: %s %s\n"                \
-                "-- Begin -- GL_ARB_debug_output\n" \
-                "%s\n"                              \
-                "-- End -- GL_ARB_debug_output\n",
-                srcstr, typestr, message);
-    } else if(severity == GL_DEBUG_SEVERITY_MEDIUM_ARB) {
-        DJG_LOG("djg_warn: %s %s\n"                 \
-                "-- Begin -- GL_ARB_debug_output\n" \
-                "%s\n"                              \
-                "-- End -- GL_ARB_debug_output\n",
-                srcstr, typestr, message);
-    }
-#ifndef NVERBOSE
-#if 0
-    else {
-        DJG_LOG("djg_verbose: %s %s\n"                 \
-                "-- Begin -- GL_ARB_debug_output\n" \
-                "%s\n"                              \
-                "-- End -- GL_ARB_debug_output\n",
-                srcstr, typestr, message);
-    }
-#endif
-#endif
-}
-
-DJGDEF void djg_log_debug_output(void)
-{
-#ifndef _WIN32 // FIXME segfault on vs2010 ?!!
-    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_ARB);
-    glDebugMessageCallbackARB((GLDEBUGPROCARB)&djg__debug_output_logger, NULL);
-#endif
-}
-
-#endif // GL_ARB_debug_output
 
 // *************************************************************************************************
 // Timer API Implementation
@@ -717,7 +630,7 @@ typedef struct djg_buffer {
 
 DJGDEF djg_buffer *djgb_create(int data_size)
 {
-    const int buf_capacity = (1 << 20); // capacity in Bytes
+    const int buf_capacity = 4096;//(1 << 20); // capacity in Bytes
     djg_buffer *buffer = (djg_buffer*)DJG_MALLOC(sizeof(*buffer));
     GLint buf = 0;
 
