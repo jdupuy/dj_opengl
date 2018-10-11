@@ -463,6 +463,9 @@ DJGDEF bool djgp_push_file(djg_program *program, const char *file)
     src[n-2] = '\n'; // add endline
     src[n-1] = '\0'; // add EOF
 
+    // add a line parameter (easier for debugging)
+    djgp_push_string(program, "#line 1\n");
+
     return djgp__push_src(program, src);
 }
 
