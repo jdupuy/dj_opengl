@@ -1790,7 +1790,6 @@ djgm_load_torus(
         float a1 = v->st.s * 2 * M_PI;
         float a2 = v->st.t * 2 * M_PI;
         float tmp = 1 + aspect * cos(a1);
-        float tx, ty, tn;
 
         v->p.x = tmp * cos(a2);
         v->p.y = tmp * sin(a2);
