@@ -699,7 +699,7 @@ DJGDEF bool djgb_to_gl(djg_buffer *buffer, const void *data, int *offset)
 
 DJGDEF void
 djgb_glbindrange_offset(
-    djg_buffer *buffer,
+    const djg_buffer *buffer,
     GLenum target,
     GLuint index,
     GLint offset
@@ -711,7 +711,8 @@ djgb_glbindrange_offset(
     glBindBufferRange(target, index, buffer->gl, bufOffset, buffer->size);
 }
 
-DJGDEF void djgb_glbindrange(djg_buffer *buffer, GLenum target, GLuint index)
+DJGDEF void
+djgb_glbindrange(const djg_buffer *buffer, GLenum target, GLuint index)
 {
     djgb_glbindrange_offset(buffer, target, index, 0);
 }
